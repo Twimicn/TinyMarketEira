@@ -1,0 +1,15 @@
+<template>
+
+</template>
+<style>
+
+</style>
+<script>
+    (function () {
+        if ($.Eira.storage('user').token) {
+            $.Eira.navigate('main');
+        } else {
+            $.Eira.navigate('login');
+        }
+    })();
+</script>

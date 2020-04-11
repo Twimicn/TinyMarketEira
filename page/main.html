@@ -1,13 +1,6 @@
 <template>
-    <div>主页</div>
-    <div><span id="msg"></span> <a onclick="Utils.logout()">退出</a></div>
+
 </template>
 <script>
-    (function () {
-        if (!Utils.checkLogin()) return;
-        var user = $.Eira.storage('user');
-        if (user.token) {
-            $('#msg').text('当前登录用户:' + user.username);
-        }
-    })();
+    
 </script>

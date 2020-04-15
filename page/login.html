@@ -29,6 +29,7 @@
     (function () {
         $('#site_name').html($.Eira.data('siteName'));
         $('#login_form').submit(function () {
+            var tipBox = Utils.loadingBox('登录中...');
             $(this).ajaxSubmit({
                 url: $.Eira.data('apiUrl') + 'api/user/login',
                 dataType: 'json',
@@ -39,6 +40,7 @@
                         $.Eira.storage('user', res.data);
                         $.Eira.navigate('index')
                     }
+                    tipBox.hide();
                 }
             });
             return false;

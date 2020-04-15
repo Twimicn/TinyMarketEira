@@ -7,6 +7,7 @@
     var prevPath = '';
     var appDiv, isDebug, pageVer, cacheExpireTime;
     var pageDir, widgetDir, scopeDir;
+    var page404;
 
     function data() {
         if (arguments.length === 0) {
@@ -55,6 +56,7 @@
     }
 
     function pageCache(view, html) {
+        if (isDebug) return;
         var pk = 'cache#' + view + '@' + pageDir;
         if (typeof html === "undefined") {
             var c = storage(pk);
@@ -72,32 +74,53 @@
         }
     }
 
-    function replaceContent(isPage, $el, $pageData, $template) {
-        if (typeof events['unload'] === "function") {
-            events['unload']();
-            delete events['unload'];
-        }
-        if (events['load']) delete events['load'];
-        $template = $template || $pageData.find('template');
-        $el.html($template.html());
-        $el.prepend($pageData.find('style'));
-        $el.append($pageData.find('script'));
+    function autoWidget($el) {
+        var $widgets = $el.find('[auto-widget]');
+        $widgets.each(function () {
+            var $w = $(this);
+            widget($w, $w.attr('auto-widget'), $w.data());
+        });
+    }
+
+    function replaceContent($el, isPage, callback, $pageData, $template) {
         if (isPage) {
-            var title = $pageData.find('title');
-            if (title.length > 0) document.title = title.text();
-            if (typeof events['load'] === 'function') events['load']();
+            if (typeof events['unload'] === "function") {
+                events['unload']();
+                delete events['unload'];
+            }
+            if (events['load']) delete events['load'];
+        }
+        $el.find('[widget]').each(function () {
+            disposeWidget($(this));
+        });
+        $template = $template || $pageData.find('template');
+        $el.empty().html($template.html());
+        $el.prepend($pageData.find('style'));
+        var $script = $pageData.find('script');
+        var title = $pageData.find('title');
+        if (title.length > 0) document.title = title.text();
+        if ($script.attr('use-widget')) {
+            var widgetList = $script.attr('use-widget').split(',');
+            loadWidget(widgetList, function () {
+                $el.append($script);
+                autoWidget($el);
+                if (typeof callback === 'function') callback();
+            });
+        } else {
+            $el.append($script);
+            autoWidget($el);
+            if (typeof callback === 'function') callback();
         }
     }
 
-    function replaceBlock(el, view, isPage) {
+    function replaceBlock(el, view, isPage, callback) {
         var $el = $(el);
-        if (view[view.length - 1] === '/') {
-            view = view + 'index'
-        }
+        if (view[0] !== '/') view = '/' + view;
+        if (view[view.length - 1] === '/') view = view + 'index'
         if (!isDebug) {
             var cacheHeml = pageCache(view);
             if (cacheHeml) {
-                replaceContent(isPage, $el, $('<div>' + cacheHeml + '</div>'));
+                replaceContent($el, isPage, callback, $('<div>' + cacheHeml + '</div>'));
                 return;
             }
         }
@@ -110,13 +133,23 @@
                 var template = pageData.find('template');
                 if (template.length > 0) {
                     pageCache(view, html);
-                    replaceContent(isPage, $el, pageData, template);
+                    replaceContent($el, isPage, callback, pageData, template);
                 } else {
-                    $el.html('<h1>404 Not Found</h1>');
+                    if (page404 && view !== page404) {
+                        replaceBlock($el, page404, isPage);
+                    } else {
+                        if (isPage) document.title = '404 Not Found';
+                        $el.html('<h1>404 Not Found</h1>');
+                    }
                 }
             },
             error: function (err) {
-                $el.html('<h1>404 Not Found</h1>')
+                if (page404 && view !== page404) {
+                    replaceBlock($el, page404, isPage);
+                } else {
+                    if (isPage) document.title = '404 Not Found';
+                    $el.html('<h1>404 Not Found</h1>');
+                }
             }
         });
     }
@@ -128,7 +161,9 @@
         } else {
             prevPath = pageInfo.path;
             delete events['change'];
-            replaceBlock(appDiv, pageInfo.path, true);
+            replaceBlock(appDiv, pageInfo.path, true, function () {
+                if (typeof events['load'] === 'function') events['load']();
+            });
         }
     }
 
@@ -150,10 +185,24 @@
         $template = $template || $widgetData.find('template');
         widgets[name].html = $template.html();
         $(document.body).prepend($widgetData.find('style').attr('widget-style', name));
-        $(document.body).append($widgetData.find('script').attr('widget-script', name));
+        var $script = $widgetData.find('script');
+        $script.attr('widget-script', name);
+        if ($script.attr('use-widget')) {
+            var widgetList = $script.attr('use-widget').split(',');
+            loadWidget(widgetList, function () {
+                $(document.body).append($script);
+            });
+        } else {
+            $(document.body).append($script);
+        }
     }
 
     function loadOneWidget(name, callback) {
+        name = name.trim();
+        if (!name || widgets[name]) {
+            if (typeof callback === 'function') callback();
+            return;
+        }
         var widgetPath = widgetDir + '/' + name.split('.').join('/') + ".html";
         var cacheHtml = pageCache(widgetPath);
         if (cacheHtml) {
@@ -199,23 +248,29 @@
     function widget(el, name, param) {
         var $el = $(el);
         if (typeof name === "undefined" && typeof param === "undefined") {
-            return $el.data('pageWidget');
+            return $el.data('widgetHandler');
         }
         if (widgets[name]) {
             var Initializer = widgets[name].initializer;
             if (!$el.attr("widget")) {
-                $el.data('origin', $el.html());
+                var $children = $el.children();
+                if ($children.length > 0) {
+                    $el.data('origin', $children);
+                } else {
+                    $el.data('origin', $el.html());
+                }
             } else {
                 disposeWidget($el);
             }
             $el.html(widgets[name].html);
+            autoWidget($el);
             var $slot = $el.find('slot');
             if ($slot.length === 1) {
                 $slot.replaceWith($el.data('origin'));
             }
             if (typeof Initializer === 'function') {
                 var handler = new Initializer($el, param);
-                $el.data('pageWidget', handler);
+                $el.data('widgetHandler', handler);
                 $el.attr('widget', name);
                 if (typeof handler['created'] === "function") {
                     handler['created']();
@@ -227,13 +282,13 @@
 
     function disposeWidget(el) {
         var $el = $(el);
-        var oldHandler = $el.data('pageWidget');
+        var oldHandler = $el.data('widgetHandler');
         if (oldHandler) {
             if (typeof oldHandler.unload === "function") {
                 oldHandler.unload();
             }
             oldHandler = undefined;
-            $el.removeData('pageWidget');
+            $el.removeData('widgetHandler');
             $el.removeAttr('widget');
             $el.find('[widget]').each(function () {
                 disposeWidget($(this));
@@ -293,6 +348,12 @@
         isDebug = options.debug;
         pageVer = options.version;
         cacheExpireTime = options.expire || 604800;
+        if (options.page404) {
+            page404 = options.page404;
+            if (page404[0] !== '/') {
+                page404 = '/' + page404;
+            }
+        }
 
         $(function () {
             renderPage();
@@ -329,8 +390,8 @@
         on: function (evtName, callback) {
             bindEvent(evtName, callback);
         },
-        render: function (el, view) {
-            replaceBlock(el, view);
+        render: function (el, view, callback) {
+            replaceBlock(el, view, false, callback);
         },
         defineWidget: function (name, init) {
             defineWidget(name, init);

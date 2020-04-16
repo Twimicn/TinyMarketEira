@@ -1,0 +1,31 @@
+<title>用户管理</title>
+<template>
+    <div id="table"></div>
+</template>
+<script use-widget="table">
+    (function () {
+        var ROLES = {
+            0: '<span class="badge badge-dark">普通用户</span>',
+            1: '<span class="badge badge-primary">管理员</span>',
+        };
+        var table = $.Eira.widget('#table', 'table', {
+            title: '用户管理',
+            mod: 'user',
+            columns: [
+                {column: 'id', text: 'ID'},
+                {column: 'username', text: '用户名'},
+                {column: 'email', text: '邮箱'},
+                {column: 'phone', text: '手机'},
+                {
+                    column: 'roleId', text: '角色', tpl: function (data) {
+                        return ROLES[data.roleId];
+                    }
+                },
+            ],
+            rowOp: [
+                {action: 'edit', text: '编辑', color: 'info'},
+                {action: 'delete', text: '删除', color: 'danger'},
+            ]
+        });
+    })();
+</script>

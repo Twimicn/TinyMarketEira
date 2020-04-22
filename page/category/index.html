@@ -34,9 +34,16 @@
             if (action === 'back') {
                 $.Eira.navigate('', {
                     mod: 'category',
-                    id: 0,
+                    id: table.response.data ? table.response.data.parentId : 0,
                 })
             }
         });
+        table.on('loaded', function (data) {
+            if (data.data) {
+                table.title('品类管理(' + data.data.name + ')');
+            } else {
+                table.title('品类管理');
+            }
+        })
     })();
 </script>

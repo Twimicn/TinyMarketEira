@@ -1,0 +1,42 @@
+<title>品类管理</title>
+<template>
+    <div id="table"></div>
+</template>
+<script use-widget="table">
+    (function () {
+        var table = $.Eira.widget('#table', 'table', {
+            title: '品类管理',
+            mod: 'category',
+            data: {
+                pid: $.Eira.router().query.id || 0,
+            },
+            columns: [
+                {column: 'id', text: 'ID'},
+                {column: 'name', text: '品类名称'},
+            ],
+            toolbar: [
+                {action: 'back', color: 'info', text: '返回上一级'},
+            ],
+            rowOp: [
+                {action: 'edit', text: '编辑', color: 'info'},
+                {action: 'view', text: '查看子品类', color: 'success'},
+            ]
+        });
+        table.on('tool', function (action, item, index, handler) {
+            if (action === 'view') {
+                $.Eira.navigate('', {
+                    mod: 'category',
+                    id: item.id,
+                })
+            }
+        });
+        table.on('toolbar', function (action) {
+            if (action === 'back') {
+                $.Eira.navigate('', {
+                    mod: 'category',
+                    id: 0,
+                })
+            }
+        });
+    })();
+</script>

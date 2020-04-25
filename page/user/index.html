@@ -4,10 +4,6 @@
 </template>
 <script use-widget="table">
     (function () {
-        var ROLES = {
-            0: '<span class="badge badge-dark">普通用户</span>',
-            1: '<span class="badge badge-primary">管理员</span>',
-        };
         var table = $.Eira.widget('#table', 'table', {
             title: '用户管理',
             mod: 'user',
@@ -18,7 +14,7 @@
                 {column: 'phone', text: '手机'},
                 {
                     column: 'roleId', text: '角色', tpl: function (data) {
-                        return ROLES[data.roleId];
+                        return Constant.USER_ROLES[data.roleId];
                     }
                 },
             ],
